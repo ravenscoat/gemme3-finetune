@@ -1,0 +1,10 @@
+# Based on the official Unsloth Gemma 3 text notebook; CUDA/Blackwell-compatible.
+torch==2.8.0
+torchvision==0.23.0
+xformers==0.0.32.post2
+unsloth==2026.10.10
+transformers==4.57.6
+trl==0.22.2
+datasets==4.3.0
+scipy
+scikit-learn

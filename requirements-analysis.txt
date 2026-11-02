@@ -1,0 +1,4 @@
+# Install in .venv-analysis, separate from the frozen GPU training environment.
+# Full resolved versions: reports/advanced-analysis-environment.txt
+sdmetrics==0.33.0
+prdc==0.2

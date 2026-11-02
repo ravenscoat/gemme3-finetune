@@ -1,0 +1,4 @@
+# Additional packages; use the existing locked Windows training environment.
+# Installed with --no-deps to preserve that environment's Torch/Numpy versions.
+mauve-text==0.4.0
+faiss-cpu==1.15.1
