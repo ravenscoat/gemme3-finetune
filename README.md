@@ -1,44 +1,138 @@
-# Gemma 3 fine-tuning
+# Gemma 3 · Synthetic Data Fine-Tuning
 
-Source code for training Gemma 3 4B QLoRA adapters and evaluating synthetic records across Bitext insurance support, InsuranceQA, reliability workflows, and MIMIC-IV demo data.
+**Fine-tune Gemma 3 4B to generate structured synthetic records, then compare the results against the source data.**
 
-## Included
+This project brings together data preparation, QLoRA training, base-versus-adapter evaluation, and a local review dashboard. It explores four datasets spanning insurance support, question answering, reliability workflows, and clinical demo records.
 
-- `scripts/train_bitext.py`: Bitext QLoRA training.
-- `scripts/train_dataset.py`: InsuranceQA, reliability, and MIMIC demo training.
-- `scripts/train_mimic_conditioned.py`: conditioned MIMIC training.
-- Data download/preparation, evaluation, analysis, and experiment scripts.
-- Windows PowerShell runners and historical Linux/WSL setup scripts.
-- Local demo in `demo/`, unit tests in `tests/`, and dependency lists.
+The focus is on making the experiments inspectable: preserve split identities, record training protocols, compare matched generation settings, and examine formatting, distributions, repetition, and copying alongside qualitative review.
 
-## Windows setup and training
+## What the project covers
 
-Use a CUDA-capable NVIDIA GPU. The Windows setup script expects a local uv binary at `.tools/uvwin/bin/uv.exe`; install uv there or adjust `$taskUv` before running it, and create the `reports/` directory for its environment snapshot. Local wheel caches are optional when packages are available online. Review `scripts/setup_windows.ps1` and `requirements-windows.txt` for the native Windows environment. The scripts store downloaded models, caches, and outputs within the project directory. Obtain Hugging Face access to the gated Gemma model and authenticate locally before downloading it; never commit access tokens.
+- **Parameter-efficient training:** 4-bit Gemma 3 with QLoRA adapters using Unsloth, Transformers, and PyTorch.
+- **Structured generation:** train on complete records and check generated JSON against dataset-specific schemas.
+- **Data preparation:** download sources, construct training/validation/test splits, and save preparation audits.
+- **Comparative evaluation:** inspect base and tuned generations with formatting, distribution, similarity, and review tools.
+- **Local exploration:** browse source records, generate examples, and inspect saved results through the demo.
+- **Experiment traceability:** retain seeds, input hashes, protocols, checkpoints, and training summaries in local run artifacts.
 
-```powershell
-.\scripts\setup_windows.ps1
-python scripts/download_bitext.py
-python scripts/prepare_bitext.py
-python scripts/download_training_model.py
-.\scripts\run_training_windows.ps1 --run bitext-4b-pilot --steps 200 --samples 64
+## Datasets
+
+| Dataset | Task |
+| --- | --- |
+| Bitext insurance support | Generate support records with requests, replies, intents, and categories. |
+| InsuranceQA | Generate structured insurance question-and-answer records. |
+| Insurance AI reliability benchmark | Model structured reliability and workflow records. |
+| MIMIC-IV demo | Explore structured clinical demo records, including conditioned generation experiments. |
+
+Each dataset has its own preparation and evaluation path. Source licenses and access requirements apply independently.
+
+## Training and evaluation workflow
+
+```text
+Download sources → Prepare and audit splits → Download base model
+                                              ↓
+                                    Train a QLoRA adapter
+                                              ↓
+                              Generate base/tuned comparisons
+                                              ↓
+                            Evaluate metrics and review examples
 ```
 
-Use the configured environment's Python interpreter for preparation/download commands (or activate it first). Start with a small feasibility run before a full experiment. See the training scripts' `--help` for resume and dataset options.
+Training and evaluation outputs are saved locally. The repository contains the source code; saved weights and experiment results are separate artifacts.
 
-For other datasets, inspect `scripts/download_remaining_sources.py` and `scripts/prepare_remaining_datasets.py`; source access and prerequisites vary. Dataset licenses and access requirements still apply.
+## Getting started on Windows
 
-## Evaluation and demo
+### 1. Clone the repository
 
-Evaluation scripts consume locally prepared data and generated training artifacts. The demo additionally expects saved adapters, evaluation cohorts, and reports from completed runs:
+```powershell
+git clone https://github.com/ravenscoat/gemme3-finetune.git
+cd gemme3-finetune
+```
+
+### 2. Prepare the environment
+
+The native Windows scripts use Python 3.12 and a CUDA-capable NVIDIA GPU. Review [requirements-windows.txt](requirements-windows.txt) and [the setup script](scripts/setup_windows.ps1) before installation; the pinned GPU stack must suit your hardware and driver.
+
+The setup script expects uv at `.tools/uvwin/bin/uv.exe`. Place your uv executable there or adjust `$taskUv` in the script to your installed uv path. It also writes an environment snapshot into `reports/`:
+
+```powershell
+New-Item -ItemType Directory -Force reports | Out-Null
+.\scripts\setup_windows.ps1
+```
+
+Model downloads may require Hugging Face access and local authentication. Keep credentials out of the repository. The historical Linux/WSL scripts and [requirements-training.txt](requirements-training.txt) describe a separate environment.
+
+### 3. Prepare Bitext and download the training model
+
+Use the environment created by the setup script:
+
+```powershell
+.\.venv-windows\Scripts\python.exe scripts/download_bitext.py
+.\.venv-windows\Scripts\python.exe scripts/prepare_bitext.py
+.\.venv-windows\Scripts\python.exe scripts/download_training_model.py
+```
+
+The model downloader defaults to `unsloth/gemma-3-4b-it-unsloth-bnb-4bit`, records its resolved revision, and stores files under `.cache/models/gemma3-4b-training/`.
+
+### 4. Start with a feasibility run
+
+```powershell
+.\scripts\run_training_windows.ps1 --run bitext-smoke --steps 2 --samples 0 --train-limit 8 --eval-limit 8 --stress-test
+```
+
+Then run a bounded pilot using a separate run name:
+
+```powershell
+.\scripts\run_training_windows.ps1 --run bitext-pilot --steps 200 --samples 64
+.\.venv-windows\Scripts\python.exe scripts/evaluate_bitext.py --run bitext-pilot
+```
+
+These commands are setup and pilot examples, not instructions to reproduce every historical experiment. Review script arguments and required inputs before launching longer jobs.
+
+## Other datasets and experiments
+
+| Entry point | Purpose |
+| --- | --- |
+| [download_remaining_sources.py](scripts/download_remaining_sources.py) | Download InsuranceQA and reliability sources. |
+| [download_mimic_demo.py](download_mimic_demo.py) | Download MIMIC demo data. |
+| [prepare_remaining_datasets.py](scripts/prepare_remaining_datasets.py) | Prepare the additional dataset tasks. |
+| [train_bitext.py](scripts/train_bitext.py) | Train or resume the Bitext adapter. |
+| [train_dataset.py](scripts/train_dataset.py) | Train an independent adapter for an additional dataset. |
+| [train_mimic_conditioned.py](scripts/train_mimic_conditioned.py) | Run conditioned MIMIC training. |
+| [generate_comparison.py](scripts/generate_comparison.py) | Generate comparison cohorts. |
+| [evaluate_final_test.py](scripts/evaluate_final_test.py) | Evaluate a configured final-test run. |
+| [distribution_benchmark.py](scripts/distribution_benchmark.py) | Run broader distribution analysis. |
+
+Use training and evaluation scripts' `--help` where available. Additional evaluation libraries are listed in [requirements-evaluation.txt](requirements-evaluation.txt) and [requirements-analysis.txt](requirements-analysis.txt).
+
+## Local demo
+
+The demo provides a browser interface for generation, source-data exploration, and saved evaluation results.
 
 ```powershell
 .\scripts\run_demo_windows.ps1
 ```
 
-Open http://127.0.0.1:8765/ after the server starts. A fresh source checkout does not include the artifacts needed to populate the demo.
+Open **http://127.0.0.1:8765/** after the server starts.
 
-## Source-only repository
+**The dashboard requires local data, adapters, and evaluation artifacts.** A fresh clone contains the application source but does not include the completed runs needed to populate every view. See [demo/README.md](demo/README.md) for interface details.
 
-Datasets, downloaded base weights, trained adapters, checkpoints, generated reports, presentation assets, caches, virtual environments, and compiled Unsloth modules are excluded. Some analysis, reporting, and experiment scripts refer to those local artifacts or the original Windows workspace and require corresponding inputs or path configuration. Historical or experimental scripts are retained for reference; their presence does not imply they are the selected production policy.
+## Repository layout
 
-Training learns structured synthetic records. Automated distribution and formatting metrics do not establish semantic, insurance, or clinical correctness.
+```text
+scripts/                      Preparation, training, evaluation, and experiment tools
+demo/                         Local server and browser interface
+tests/                        Unit tests for metrics and experiment helpers
+requirements-windows.txt      Native Windows training dependencies
+requirements-training.txt     Historical Linux/WSL training dependencies
+requirements-evaluation.txt   Evaluation dependencies
+requirements-analysis.txt     Additional analysis dependencies
+```
+
+Generated directories such as `data/`, `outputs/`, `reports/`, and `.cache/` are intentionally ignored, along with environments, model weights, and checkpoints.
+
+## Scope and limitations
+
+This is an experimental source release. Some reporting tools and historical experiments depend on local artifacts or paths from the original workspace and need configuration before use. No pretrained adapters, benchmark results, or complete reproducibility bundle are distributed here.
+
+Formatting and distribution metrics describe specific aspects of generated data. They do not establish factual accuracy, insurance suitability, clinical validity, privacy guarantees, or equivalence to the source population. Qualitative and domain-expert review remain necessary for any downstream use.
